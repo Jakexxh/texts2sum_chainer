@@ -22,9 +22,9 @@ class MyChain(Chain.links):
     def __init__(self):
         super(MyChain, self).__init__()
         with self.init_scope():
-            self.w_xh=L.EmbedID(vocab_size, hidden_size)
-            self.w_hh=L.Linear(hidden_size, hidden_size)
-            self.w_hy=L.Linear(hidden_size, vocab_size)
+            self.w_xh=L.EmbedID(vocab_size, HIDDEN_SIZE)
+            self.w_hh=L.Linear(HIDDEN_SIZE, HIDDEN_SIZE)
+            self.w_hy=L.Linear(HIDDEN_SIZE, vocab_size)
 
 
     def __call__(self, x):
