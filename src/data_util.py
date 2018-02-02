@@ -1,5 +1,5 @@
 import logging
-
+import random
 import numpy as np
 
 MARK_PAD = "<PAD>"
@@ -12,6 +12,52 @@ ID_UNK = 1
 ID_EOS = 2
 ID_GO = 3
 
+BUCKETS = [(30, 10), (50, 20), (70, 20), (100, 20), (200, 30)]
+
+
+def create_bucket(source, target):
+    data_set = [[] for _ in BUCKETS]
+    for s, t in zip(source, target):
+        t = [ID_GO] + t + [ID_EOS]
+        for bucket_id, (s_size, t_size) in enumerate(BUCKETS):
+            if len(s) <= s_size and len(t) <= t_size:
+                data_set[bucket_id].append([s, t])
+                break
+    return data_set
+
+
+def add_pad(data, fixlen):
+    data = map(lambda x: x + [data.ID_PAD] * (fixlen - len(x)), data)
+    data = list(data)
+    return np.asarray(data)
+
+
+def get_batch(batch_size, data, bucket_id):
+    encoder_inputs, decoder_inputs = [], []
+    encoder_len, decoder_len = [], []
+    
+    # Get a random batch of encoder and decoder inputs from data,
+    # and add GO to decoder.
+    for _ in range(batch_size):
+        encoder_input, decoder_input = random.choice(data[bucket_id])
+        
+        encoder_inputs.append(encoder_input)
+        encoder_len.append(len(encoder_input))
+        
+        decoder_inputs.append(decoder_input)
+        decoder_len.append(len(decoder_input))
+    
+    batch_enc_len = max(encoder_len)
+    batch_dec_len = max(decoder_len)
+    
+    encoder_inputs = add_pad(encoder_inputs, batch_enc_len)
+    decoder_inputs = add_pad(decoder_inputs, batch_dec_len)
+    encoder_len = np.asarray(encoder_len)
+    # decoder_input has both <GO> and <EOS>
+    # len(decoder_input)-1 is number of steps in the decoder.
+    decoder_len = np.asarray(decoder_len) - 1
+    
+    return encoder_inputs, decoder_inputs, encoder_len, decoder_len
 
 def load_dict(dict_path, max_vocab=None):
     logging.info("Try load dict from {}.".format(dict_path))
