@@ -18,10 +18,12 @@ def create_bucket(source, target):
 				break
 	return data_set
 
+
 def add_pad(data, fixlen):
 	data = map(lambda x: x + [data.ID_PAD] * (fixlen - len(x)), data)
 	data = list(data)
 	return np.asarray(data)
+
 
 def get_batch(data, bucket_id):
 	encoder_inputs, decoder_inputs = [], []
@@ -67,6 +69,7 @@ def main():
 	parser.add_argument('sum_vocab_size')
 	
 	### train
+	parser.add_argument('--batch_size', type=int, default=80, help='Batch size in training / beam size in testing.')
 	parser.add_argument('--epoch', '-e', type=int, default=20,
 						help='number of sweeps over the dataset to train')
 	

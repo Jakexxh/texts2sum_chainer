@@ -22,11 +22,27 @@ class BiLSTMModel(chainer.Chain):
 		self.stack_depth = 2
 		self.n_units = n_units
 	
-	def reset_state(self):
-		self.encoder.reset_state()
-		self.decoder.reset_state()
-	
 	def __call__(self, encoder_input, decoder_input):
-		
 
-		return y
+		batch_size = len(encoder_input)
+
+		decoder_input = decoder_input[:, :-1]
+		decoder_target = decoder_input[:, 1:]
+		
+		encoder_inputs_emb = F.dropout(self.encoder_embed(encoder_input))
+		decoder_inputs_emb = F.dropout(self.decoder_embed(decoder_input))
+		
+		hx, cx, _ = self.encoder(None, None, encoder_inputs_emb)
+		_, _, os = self.decoder(hx, cx, decoder_inputs_emb)
+		
+		concat_os = F.concat(os, axis=0)
+		concat_ys_out = F.concat(decoder_target, axis=0)
+		loss = F.sum(F.softmax_cross_entropy(
+			self.W(concat_os), concat_ys_out, reduce='no')) / batch_size
+		
+		chainer.report({'loss': loss.data}, self)
+		n_words = concat_ys_out.shape[0]
+		perp = self.xp.exp(loss.data * batch_size / n_words)
+		chainer.report({'perp': perp}, self)
+		
+		return loss
