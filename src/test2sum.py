@@ -5,58 +5,38 @@ import random
 import chainer
 import chainer.links as L
 import chainer.functions as F
-
+from chainer import training
+from chainer.training import extensions
 import numpy as np
 import src.data_util as data
 from .seq2seq import BiLSTMModel
+from .iterator import Txt2SumIterator
 
-
-
-def data_iterator(data_set, only_forward):
-	if not only_forward:
-		train_bucket_sizes = [len(data_set[b]) for b in range(len(data.BUCKETS))]
-		train_total_size = float(sum(train_bucket_sizes))
-		train_buckets_scale = [
-			sum(train_bucket_sizes[:i + 1]) / train_total_size
-			for i in range(len(train_bucket_sizes))]
-		
-		for (s_size, t_size), nsample in zip(data.BUCKETS, train_bucket_sizes):
-			logging.info("Train set bucket ({}, {}) has {} samples.".format(
-				s_size, t_size, nsample))
-			
-		random_number_01 = np.random.random_sample()
-		bucket_id = min([i for i in range(len(train_buckets_scale))
-		                 if train_buckets_scale[i] > random_number_01])
-		encoder_inputs, decoder_inputs, _, _ = data.get_batch(data_set, bucket_id)
-		
-
-	else:
-	
 
 
 def main():
-	## args
 	
 	### data
 	parser = argparse.ArgumentParser(description='Test Summarizer in Chainer')
-	parser.add_argument('text_source', help='source sentence list for training')
-	parser.add_argument('sum_target', help='target sentence list for training')
-	parser.add_argument('val_text_source', help='source sentence list for val')
-	parser.add_argument('val_sum_target', help='target sentence list for val')
-	parser.add_argument('text_vocab', help='source vocabulary file')
-	parser.add_argument('sum_vocab', help='target vocabulary file')
-	parser.add_argument('text_vocab_size')
-	parser.add_argument('sum_vocab_size')
+	parser.add_argument('text_source', type=str, help='source sentence list for training')
+	parser.add_argument('sum_target', type=str, help='target sentence list for training')
+	parser.add_argument('val_text_source',type=str, help='source sentence list for val')
+	parser.add_argument('val_sum_target',type=str, help='target sentence list for val')
+	parser.add_argument('text_vocab', type=str, help='source vocabulary file')
+	parser.add_argument('sum_vocab', type=str, help='target vocabulary file')
 	
-	### train
+	### model
 	parser.add_argument('--batch_size', type=int, default=80, help='Batch size in training / beam size in testing.')
 	parser.add_argument('--epoch', '-e', type=int, default=20,
 	                    help='number of sweeps over the dataset to train')
+	parser.add_argument('--iteration', '-i', type=int, default=1000000,
+	                    help='number of iteration over the dataset to train')
 	parser.add_argument('--units', '-u', type=int, default=650,
 	                    help='Number of LSTM units in each layer')
+	parser.add_argument('--mode', '-m', type=str, default='train',
+	                    help='model mode: train | sum')
 	
 	args = parser.parse_args()
-	
 	## load dta
 	train_text_id, train_sum_id, text_dict, sum_dict = \
 		data.load_data(args.text_source, args.sum_target, args.text_vocab,
@@ -67,74 +47,38 @@ def main():
 		                     args.val_sum_source,
 		                     text_dict, sum_dict)
 	
-	val_set = data.create_bucket(val_text_id, val_sum_id)
 	train_set = data.create_bucket(train_text_id, train_sum_id)
+	val_set = data.create_bucket(val_text_id, val_sum_id)
 	
-	train_data = data_iterator()
-	train_iter = chainer.iterators.SerialIterator(train_data, args.batchsize)
-
-
+	train_iter = Txt2SumIterator(train_set, args.batchsize, args.iteration, True)
+	val_iter = Txt2SumIterator(val_set, args.batchsize, args.iteration, False)
+	
 	bilstm_model = BiLSTMModel(args.text_vocab_size, args.sum_vocab_size, args.units)
-	bilstm_model = L.Classifier(bilstm_model)
 	
 	optimizer = chainer.optimizers.Adam()
 	optimizer.setup(bilstm_model)
-	
 	optimizer.add_hook(chainer.optimizer.GradientClipping(1.0))
 	
-	def evaluate(model, iter):
-		# Evaluation routine to be used for validation and test.
-		model.predictor.train = False
-		evaluator = model.copy()  # to use different state
-		evaluator.predictor.reset_state()  # initialize state
-		evaluator.predictor.train = False  # dropout does nothing
-		sum_perp = 0
-		data_count = 0
-		for batch in copy.copy(iter):
-
-			loss = evaluator(x, t)
-			sum_perp += loss.data
-			data_count += 1
-		model.predictor.train = True
-		return np.exp(float(sum_perp) / data_count)
+	def convert(batch, device):
+		def to_device_batch(batch):
+			if device is None:
+				return batch
+			else:
+				return [chainer.dataset.to_device(device, x) for x in batch]
 	
-	# train_data = zip()
-
+		return {'xs': to_device_batch([x for x, _ in batch]),
+	            'ys': to_device_batch([y for _, y in batch])}
 	
-	# iteration = 0
-	# count = 0
-	# sum_perp = 0
-	# while iteration < args.epoch:
-	#
-	# 	random_number_01 = np.random.random_sample()
-	# 	bucket_id = min([i for i in range(len(train_buckets_scale))
-	# 				if train_buckets_scale[i] > random_number_01])
-	#
-	# 	loss = 0
-	# 	iteration += 1
-	# 	# Progress the dataset iterator for bprop_len words at each iteration.
-	# 	for i in range(args.bproplen):
-	# 		encoder_inputs, decoder_inputs, _, _ = get_batch(train_set, bucket_id)
-	#
-	# 		loss += optimizer.target(chainer.Variable(encoder_inputs), chainer.Variable(decoder_inputs))
-	# 		count += 1
-	#
-	# 	sum_perp += loss.data
-	# 	optimizer.target.cleargrads()  # Clear the parameter gradients
-	# 	loss.backward()  # Backprop
-	# 	loss.unchain_backward()  # Truncate the graph
-	# 	optimizer.update()  # Update the parameters
-	#
-	# 	if iteration % 20 == 0:
-	# 		print('iteration: ', iteration)
-	# 		print('training perplexity: ', np.exp(float(sum_perp) / count))
-	# 		sum_perp = 0
-	# 		count = 0
-	#
-	# 	if iteration % 20 == 0:
-	# 		val_encoder_inputs, val_decoder_inputs, _, _= get_batch(val_set, bucket_id)
-	# 		print('epoch: ', iteration)
-	# 		print('validation perplexity: ', evaluate(model, val_iter))
+	updater = training.updaters.StandardUpdater(
+		train_iter, optimizer, converter=convert, device=args.gpu)
+	trainer = training.Trainer(updater, (args.epoch, 'epoch'))
+	trainer.extend(extensions.LogReport(
+		trigger=(args.log_interval, 'iteration')))
+	trainer.extend(extensions.PrintReport(
+		['epoch', 'iteration', 'main/loss', 'validation/main/loss',
+		 'main/perp', 'validation/main/perp', 'validation/main/bleu',
+		 'elapsed_time']),
+		trigger=(args.log_interval, 'iteration'))
 
 
 if __name__ == '__main__':

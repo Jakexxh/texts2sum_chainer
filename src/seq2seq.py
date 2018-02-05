@@ -29,11 +29,11 @@ class BiLSTMModel(chainer.Chain):
 		decoder_input = decoder_input[:, :-1]
 		decoder_target = decoder_input[:, 1:]
 		
-		encoder_inputs_emb = F.dropout(self.encoder_embed(encoder_input))
-		decoder_inputs_emb = F.dropout(self.decoder_embed(decoder_input))
+		encoder_inputs_emb = self.sequence_embed(self.encoder_embed,encoder_input)
+		decoder_inputs_emb = self.sequence_embed(self.decoder_embed,decoder_input)
 		
-		hx, cx, _ = self.encoder(None, None, encoder_inputs_emb)
-		_, _, os = self.decoder(hx, cx, decoder_inputs_emb)
+		hx, cx, _ = F.dropout(self.encoder(None, None, encoder_inputs_emb))
+		_, _, os = F.dropout(self.decoder(hx, cx, decoder_inputs_emb))
 		
 		concat_os = F.concat(os, axis=0)
 		concat_ys_out = F.concat(decoder_target, axis=0)
@@ -46,3 +46,13 @@ class BiLSTMModel(chainer.Chain):
 		chainer.report({'perp': perp}, self)
 		
 		return loss
+	
+	def summary(self):
+		pass
+	
+	def sequence_embed(self, embed, xs):
+		x_len = [len(x) for x in xs]
+		x_section = self.xp.cumsum(x_len[:-1])
+		ex = embed(F.concat(xs, axis=0))
+		exs = F.split_axis(ex, x_section, 0)
+		return exs
