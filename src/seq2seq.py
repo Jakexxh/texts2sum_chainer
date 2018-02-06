@@ -8,7 +8,7 @@ from chainer.dataset import convert
 from chainer import reporter as reporter_module
 from chainer import function
 
-from .data_util import ID_EOS
+from src.data_util import ID_EOS
 import numpy as np
 
 
@@ -16,16 +16,18 @@ class Text2SumModel(chainer.Chain):
 	
 	def __init__(self, source_vocab, target_vocab, n_units):
 		super(Text2SumModel, self).__init__()
-		with self.init_scope():
-			
-			self.encoder_embed = L.EmbedID(source_vocab, n_units)
-			self.decoder_embed = L.EmbedID(target_vocab, n_units)
-			self.encoder = L.NStepBiLSTM(self.stack_depth, n_units, n_units, ratio=0.5, initialW=init.Orthogonal)
-			self.decoder = L.NStepLSTM(self.stack_depth, n_units, n_units, ratio=0.5, initialW=init.Orthogonal)
-			self.W = L.Linear(n_units, target_vocab)
 		
 		self.stack_depth = 2
 		self.n_units = n_units
+		
+		with self.init_scope():
+			self.encoder_embed = L.EmbedID(source_vocab, n_units)
+			self.decoder_embed = L.EmbedID(target_vocab, n_units)
+			self.encoder = L.NStepBiLSTM(self.stack_depth, n_units, n_units, dropout=0.5, initialW=init.Orthogonal)
+			self.decoder = L.NStepLSTM(self.stack_depth, n_units, n_units, dropout=0.5, initialW=init.Orthogonal)
+			self.W = L.Linear(n_units, target_vocab)
+		
+
 	
 	def __call__(self, encoder_input, decoder_input):
 		
@@ -50,10 +52,10 @@ class Text2SumModel(chainer.Chain):
 			loss = F.sum(F.softmax_cross_entropy(
 				self.W(concat_os), concat_ys_out, reduce='no')) / batch_size
 			
-			chainer.report({'loss': loss.data}, self)
+			chainer.report({'train_loss': loss.data}, self)
 			n_words = concat_ys_out.shape[0]
 			perp = self.xp.exp(loss.data * batch_size / n_words)
-			chainer.report({'perp': perp}, self)
+			chainer.report({'train_perp': perp}, self)
 			
 			return loss
 	
@@ -92,43 +94,43 @@ class Text2SumModel(chainer.Chain):
 			loss = F.sum(F.softmax_cross_entropy(
 				self.W(concat_os), concat_ys_out, reduce='no')) / batch_size
 			
-			chainer.report({'loss': loss.data}, self)
+			chainer.report({'val_loss': loss.data}, self)
 			n_words = concat_ys_out.shape[0]
 			perp = self.xp.exp(loss.data * batch_size / n_words)
-			chainer.report({'perp': perp}, self)
+			chainer.report({'val_perp': perp}, self)
 			
 			return loss
-			
-	def summary(self, encoder_input):
-		batch_size = len(encoder_input)
-		
-		with chainer.no_backprop_mode(), chainer.using_config('train', False):
-			
-			encoder_inputs_emb = self.sequence_embed(self.encoder_embed, encoder_input)
-			en_h, en_c, _ = self.encoder(None, None, encoder_inputs_emb)
-			decoder_input = self.xp.full(batch_size, ID_EOS, 'i')
-			
-			def decode(ys):
-				eys = self.decoder_embed(ys)
-				eys = F.split_axis(eys, batch_size, 0)
-				h, c, ys = self.decoder(en_h, en_c, eys)
-				cys = F.concat(ys, axis=0)
-				wy = self.W(cys)
-				ys = self.xp.argmax(wy.data, axis=1).astype('i')
-				return ys
-			
-			result = map(decode, decoder_input)
-			
-			def refactor(y):
-				inds = self.xp.argwhere(y == ID_EOS)
-				if len(inds) > 0:
-					y = y[:inds[0, 0]]
-				return y
-			
-			outputs = map(refactor, result)
-			
-			return outputs
-			
+	#
+	# def summary(self, encoder_input):
+	# 	batch_size = len(encoder_input)
+	#
+	# 	with chainer.no_backprop_mode(), chainer.using_config('train', False):
+	#
+	# 		encoder_inputs_emb = self.sequence_embed(self.encoder_embed, encoder_input)
+	# 		en_h, en_c, _ = self.encoder(None, None, encoder_inputs_emb)
+	# 		decoder_input = self.xp.full(batch_size, ID_EOS, 'i')
+	#
+	# 		def decode(ys):
+	# 			eys = self.decoder_embed(ys)
+	# 			eys = F.split_axis(eys, batch_size, 0)
+	# 			h, c, ys = self.decoder(en_h, en_c, eys)
+	# 			cys = F.concat(ys, axis=0)
+	# 			wy = self.W(cys)
+	# 			ys = self.xp.argmax(wy.data, axis=1).astype('i')
+	# 			return ys
+	#
+	# 		result = map(decode, decoder_input)
+	#
+	# 		def refactor(y):
+	# 			inds = self.xp.argwhere(y == ID_EOS)
+	# 			if len(inds) > 0:
+	# 				y = y[:inds[0, 0]]
+	# 			return y
+	#
+	# 		outputs = map(refactor, result)
+	#
+	# 		return outputs
+	#
 	def sequence_embed(self, embed, xs):
 		x_len = [len(x) for x in xs]
 		x_section = self.xp.cumsum(x_len[:-1])

@@ -2,6 +2,8 @@ import logging
 import random
 import numpy as np
 
+
+
 MARK_PAD = "<PAD>"
 MARK_UNK = "<UNK>"
 MARK_EOS = "<EOS>"
@@ -62,7 +64,7 @@ def get_batch(batch_size, data, bucket_id):
 def load_dict(dict_path, max_vocab=None):
     logging.info("Try load dict from {}.".format(dict_path))
     try:
-        dict_file = open(dict_path)
+        dict_file = open(dict_path, encoding='utf-8')
         dict_data = dict_file.readlines()
         dict_file.close()
     except:
@@ -104,7 +106,7 @@ def create_dict(dict_path, corpus, max_vocab=None):
 
     tok2id = dict()
     id2tok = dict()
-    with open(dict_path, 'w') as dict_file:
+    with open(dict_path, 'w', encoding='utf-8') as dict_file:
         for idx, tok in enumerate(words):
             print(idx, tok, file=dict_file)
             tok2id[tok] = idx
@@ -146,9 +148,9 @@ def load_data(doc_filename,
         "Load document from {}; summary from {}.".format(
             doc_filename, sum_filename))
 
-    with open(doc_filename) as docfile:
+    with open(doc_filename, encoding='utf-8') as docfile:
         docs = docfile.readlines()
-    with open(sum_filename) as sumfile:
+    with open(sum_filename, encoding='utf-8') as sumfile:
         sums = sumfile.readlines()
     assert len(docs) == len(sums)
     logging.info("Load {num} pairs of data.".format(num=len(docs)))
@@ -181,9 +183,9 @@ def load_valid_data(doc_filename,
     logging.info(
         "Load validation document from {}; summary from {}.".format(
             doc_filename, sum_filename))
-    with open(doc_filename) as docfile:
+    with open(doc_filename, encoding='utf-8') as docfile:
         docs = docfile.readlines()
-    with open(sum_filename) as sumfile:
+    with open(sum_filename, encoding='utf-8') as sumfile:
         sums = sumfile.readlines()
     assert len(sums) == len(docs)
 
@@ -217,7 +219,7 @@ def sen_postprocess(sen):
 def load_test_data(doc_filename, doc_dict):
     logging.info("Load test document from {doc}.".format(doc=doc_filename))
 
-    with open(doc_filename) as docfile:
+    with open(doc_filename, encoding='utf-8') as docfile:
         docs = docfile.readlines()
     docs = corpus_preprocess(docs)
 
