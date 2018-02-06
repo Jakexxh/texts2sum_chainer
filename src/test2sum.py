@@ -3,15 +3,12 @@ import argparse
 import copy
 import random
 import chainer
-import chainer.links as L
-import chainer.functions as F
 from chainer import training
 from chainer.training import extensions
 import numpy as np
-import src.data_util as data
-from .seq2seq import BiLSTMModel
+from .data_util import load_data, load_valid_data, load_test_data, create_bucket
+from .seq2seq import Text2SumModel
 from .iterator import Txt2SumIterator
-
 
 
 def main():
@@ -24,6 +21,7 @@ def main():
 	parser.add_argument('val_sum_target',type=str, help='target sentence list for val')
 	parser.add_argument('text_vocab', type=str, help='source vocabulary file')
 	parser.add_argument('sum_vocab', type=str, help='target vocabulary file')
+	parser.add_argument('test_text_source',type=str, help='source sentence list for val')
 	
 	### model
 	parser.add_argument('--batch_size', type=int, default=80, help='Batch size in training / beam size in testing.')
@@ -38,22 +36,18 @@ def main():
 	
 	args = parser.parse_args()
 	## load dta
-	train_text_id, train_sum_id, text_dict, sum_dict = \
-		data.load_data(args.text_source, args.sum_target, args.text_vocab,
+	train_text, train_sum, text_dict, sum_dict = \
+		load_data(args.text_source, args.sum_target, args.text_vocab,
 		               args.sum_vocab, args.text_vocab_size, args.sum_vocab_size)
 	
-	val_text_id, val_sum_id = \
-		data.load_valid_data(args.val_text_source,
-		                     args.val_sum_source,
-		                     text_dict, sum_dict)
+	# test_dat = \
+	# 	load_valid_data(args.test_text_source, text_dict)
 	
-	train_set = data.create_bucket(train_text_id, train_sum_id)
-	val_set = data.create_bucket(val_text_id, val_sum_id)
-	
+	train_set = create_bucket(train_text, train_sum)
+
 	train_iter = Txt2SumIterator(train_set, args.batchsize, args.iteration, True)
-	val_iter = Txt2SumIterator(val_set, args.batchsize, args.iteration, False)
 	
-	bilstm_model = BiLSTMModel(args.text_vocab_size, args.sum_vocab_size, args.units)
+	bilstm_model = Text2SumModel(args.text_vocab_size, args.sum_vocab_size, args.units)
 	
 	optimizer = chainer.optimizers.Adam()
 	optimizer.setup(bilstm_model)
@@ -80,6 +74,21 @@ def main():
 		 'elapsed_time']),
 		trigger=(args.log_interval, 'iteration'))
 
+	#################### validation ####################
 
+	@chainer.training.make_extension()
+	def validate():
+		val_text, val_sum = \
+			load_valid_data(args.val_text_source,
+			                args.val_sum_source,
+			                text_dict, sum_dict)
+		
+		val_set = create_bucket(val_text, val_sum)
+		val_iter = Txt2SumIterator(val_set, args.batchsize, args.iteration, False)
+		
+	
+	#TODO: calculate unknown ratio
+
+	
 if __name__ == '__main__':
 	main()

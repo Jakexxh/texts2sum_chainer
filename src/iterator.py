@@ -25,6 +25,8 @@ class Txt2SumIterator(chainer.dataset.Iterator):
 		if not self.repeat and self.iteration > self.max_iter and self.epoch > 1:
 			raise StopIteration
 		
+		self.iteration += 1
+		
 		train_bucket_sizes = [len(self.dataset[b]) for b in range(len(data.BUCKETS))]
 		train_total_size = float(sum(train_bucket_sizes))
 		train_buckets_scale = [
