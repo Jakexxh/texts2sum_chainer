@@ -40,7 +40,7 @@ def main():
 	                    help='Number of LSTM units in each layer')
 	parser.add_argument('--mode', '-m', type=str, default='train',
 	                    help='model mode: train | sum')
-	parser.add_argument('--validation-interval', type=int, default=2000,
+	parser.add_argument('--validation-interval', type=int, default=1,
 	                    help='number of iteration to evlauate the model '
 	                         'with validation dataset')
 	### log
@@ -54,9 +54,6 @@ def main():
 	train_text, train_sum, text_dict, sum_dict = \
 		load_data(*map(lambda dir: os.path.join(projct_path,dir), (args.text_source, args.sum_target, args.text_vocab,
 		          args.sum_vocab)), max_doc_vocab=args.text_vocab_size, max_sum_vocab=args.sum_vocab_size)
-	
-	# test_dat = \
-	# 	load_valid_data(args.test_text_source, text_dict)
 	
 	train_set = create_bucket(train_text, train_sum)
 	
@@ -84,16 +81,14 @@ def main():
 	val_set = create_bucket(val_text, val_sum)
 	val_iter = Txt2SumIterator(val_set, args.batch_size, args.iteration, False)
 	
-	#eval_model = bilstm_model.copy()  # Model with shared params and distinct state
-	# validator = eval_model.validate
-	#trainer.extend(extensions.Evaluator(val_iter, target=eval_model))
 	@chainer.training.make_extension()
 	def validate(trainer):
 		encoder_inputs, decoder_target = val_iter.generate()
-		loss, prep = bilstm_model.validate(encoder_inputs, decoder_target)
-		print('val: '+str(loss), str(prep))
+		prep = bilstm_model.validate(encoder_inputs, decoder_target)
+		print('val: ', str(prep))
 	trainer.extend(
 		validate, trigger=(args.validation_interval, 'iteration'))
+
 	#################### extension ####################
 	
 	trainer.extend(extensions.LogReport(
