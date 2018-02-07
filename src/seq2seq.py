@@ -37,10 +37,8 @@ class Text2SumModel(chainer.Chain):
 		with chainer.no_backprop_mode(), chainer.using_config('train', True):
 			
 			encoder_inputs_emb = self.sequence_embed(self.encoder_embed,encoder_input)
-			# encoder_inputs_emb = F.dropout(encoder_inputs_emb, ratio=0.5)
 			
 			decoder_inputs_emb = self.sequence_embed(self.decoder_embed,decoder_input)
-			# decoder_inputs_emb = F.dropout(decoder_inputs_emb, ratio=0.5)
 			
 			hx, cx, _ = self.encoder(None, None, encoder_inputs_emb)
 			_, _, os = self.decoder(hx, cx, decoder_inputs_emb)
@@ -65,12 +63,8 @@ class Text2SumModel(chainer.Chain):
 		with chainer.no_backprop_mode(), chainer.using_config('train', False):
 			
 			encoder_inputs_emb = self.sequence_embed(self.encoder_embed, encoder_input)
-#			encoder_inputs_emb = F.dropout(encoder_inputs_emb, ratio=0.5)
 
-			decoder_input = self.xp.zeros_like(decoder_source[:, :1]) + ID_EOS #self.xp.full(batch_size, self.xp.array([ID_EOS,]),)
-			#decoder_inputs_emb = self.sequence_embed(self.decoder_embed, decoder_input)
-#			decoder_inputs_emb = F.dropout(decoder_inputs_emb, ratio=0.5)
-			
+			decoder_input = self.xp.zeros_like(decoder_source[:, :1]) + ID_EOS
 			en_h, en_c, _ = self.encoder(None, None, encoder_inputs_emb)
 			
 			de_h, de_c, ys = en_h, en_c, decoder_input
@@ -88,10 +82,8 @@ class Text2SumModel(chainer.Chain):
 			concat_ys_out = F.concat(decoder_target, axis=0)
 			loss = self.softmax_cross_entropy(concat_os.data, concat_ys_out.data) / batch_size
 			
-			# chainer.report({'val_loss': loss}, self)
 			n_words = concat_ys_out.shape[0]
 			perp = self.xp.exp(loss * batch_size / n_words)
-			# chainer.report({'val_perp': perp}, self)
 			
 			return perp
 

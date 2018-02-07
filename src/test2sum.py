@@ -1,10 +1,8 @@
 import logging
 import argparse
-import copy
 import chainer
 from chainer import training
 from chainer.training import extensions
-import numpy as np
 from src.data_util import load_data, load_valid_data, load_test_data, create_bucket
 from src.seq2seq import Text2SumModel
 from src.iterator import Txt2SumIterator
