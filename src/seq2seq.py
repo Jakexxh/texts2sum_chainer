@@ -24,25 +24,23 @@ class Text2SumModel(chainer.Chain):
 			self.encoder_embed = L.EmbedID(source_vocab, n_units)
 			self.decoder_embed = L.EmbedID(target_vocab, n_units)
 			self.encoder = L.NStepBiLSTM(self.stack_depth, n_units, n_units, dropout=0.5, initialW=init.Orthogonal)
-			self.decoder = L.NStepLSTM(self.stack_depth, n_units, n_units, dropout=0.5, initialW=init.Orthogonal)
+			self.decoder = L.NStepLSTM(self.stack_depth * 2, n_units, n_units, dropout=0.5, initialW=init.Orthogonal)
 			self.W = L.Linear(n_units, target_vocab)
-		
-
-	
-	def __call__(self, encoder_input, decoder_input):
+			
+	def __call__(self, encoder_input, decoder_source):
 		
 		batch_size = len(encoder_input)
 
-		decoder_input = decoder_input[:, :-1]
-		decoder_target = decoder_input[:, 1:]
+		decoder_input = decoder_source[:, :-1]
+		decoder_target = decoder_source[:, 1:]
 		
 		with chainer.no_backprop_mode(), chainer.using_config('train', True):
 			
 			encoder_inputs_emb = self.sequence_embed(self.encoder_embed,encoder_input)
-			encoder_inputs_emb = F.dropout(encoder_inputs_emb, ratio=0.5)
+			# encoder_inputs_emb = F.dropout(encoder_inputs_emb, ratio=0.5)
 			
 			decoder_inputs_emb = self.sequence_embed(self.decoder_embed,decoder_input)
-			decoder_inputs_emb = F.dropout(decoder_inputs_emb, ratio=0.5)
+			# decoder_inputs_emb = F.dropout(decoder_inputs_emb, ratio=0.5)
 			
 			hx, cx, _ = self.encoder(None, None, encoder_inputs_emb)
 			_, _, os = self.decoder(hx, cx, decoder_inputs_emb)
@@ -59,10 +57,10 @@ class Text2SumModel(chainer.Chain):
 			
 			return loss
 	
-	def validate(self, encoder_input, decoder_target):
+	def validate(self, encoder_input, decoder_source):
 		
 		batch_size = len(encoder_input)
-		decoder_target = decoder_target[:, 1:]
+		decoder_target = decoder_source[:, 1:]
 		
 		with chainer.no_backprop_mode(), chainer.using_config('train', False):
 			
@@ -99,38 +97,9 @@ class Text2SumModel(chainer.Chain):
 			perp = self.xp.exp(loss.data * batch_size / n_words)
 			chainer.report({'val_perp': perp}, self)
 			
-			return loss
-	#
-	# def summary(self, encoder_input):
-	# 	batch_size = len(encoder_input)
-	#
-	# 	with chainer.no_backprop_mode(), chainer.using_config('train', False):
-	#
-	# 		encoder_inputs_emb = self.sequence_embed(self.encoder_embed, encoder_input)
-	# 		en_h, en_c, _ = self.encoder(None, None, encoder_inputs_emb)
-	# 		decoder_input = self.xp.full(batch_size, ID_EOS, 'i')
-	#
-	# 		def decode(ys):
-	# 			eys = self.decoder_embed(ys)
-	# 			eys = F.split_axis(eys, batch_size, 0)
-	# 			h, c, ys = self.decoder(en_h, en_c, eys)
-	# 			cys = F.concat(ys, axis=0)
-	# 			wy = self.W(cys)
-	# 			ys = self.xp.argmax(wy.data, axis=1).astype('i')
-	# 			return ys
-	#
-	# 		result = map(decode, decoder_input)
-	#
-	# 		def refactor(y):
-	# 			inds = self.xp.argwhere(y == ID_EOS)
-	# 			if len(inds) > 0:
-	# 				y = y[:inds[0, 0]]
-	# 			return y
-	#
-	# 		outputs = map(refactor, result)
-	#
-	# 		return outputs
-	#
+			return loss, perp
+	
+
 	def sequence_embed(self, embed, xs):
 		x_len = [len(x) for x in xs]
 		x_section = self.xp.cumsum(x_len[:-1])

@@ -27,6 +27,26 @@ class Txt2SumIterator(chainer.dataset.Iterator):
 		
 		self.iteration += 1
 		
+		# train_bucket_sizes = [len(self.dataset[b]) for b in range(len(data.BUCKETS))]
+		# train_total_size = float(sum(train_bucket_sizes))
+		# train_buckets_scale = [
+		# 	sum(train_bucket_sizes[:i + 1]) / train_total_size
+		# 	for i in range(len(train_bucket_sizes))]
+		#
+		# for (s_size, t_size), nsample in zip(data.BUCKETS, train_bucket_sizes):
+		# 	logging.info("Train set bucket ({}, {}) has {} samples.".format(
+		# 		s_size, t_size, nsample))
+		#
+		# random_number_01 = np.random.random_sample()
+		# bucket_id = min([i for i in range(len(train_buckets_scale))
+		#                  if train_buckets_scale[i] > random_number_01])
+		#
+		# encoder_inputs, decoder_inputs, _, _ = data.get_batch(self.batch_size, self.dataset, bucket_id)
+		encoder_inputs, decoder_inputs = self.generate()
+		
+		return encoder_inputs, decoder_inputs
+	
+	def generate(self):
 		train_bucket_sizes = [len(self.dataset[b]) for b in range(len(data.BUCKETS))]
 		train_total_size = float(sum(train_bucket_sizes))
 		train_buckets_scale = [
@@ -41,7 +61,7 @@ class Txt2SumIterator(chainer.dataset.Iterator):
 		bucket_id = min([i for i in range(len(train_buckets_scale))
 		                 if train_buckets_scale[i] > random_number_01])
 		
-		encoder_inputs, decoder_inputs, _, _ = data.get_batch(self.dataset, bucket_id)
+		encoder_inputs, decoder_inputs, _, _ = data.get_batch(self.batch_size, self.dataset, bucket_id)
 		
 		return encoder_inputs, decoder_inputs
 	

@@ -29,7 +29,7 @@ def create_bucket(source, target):
 
 
 def add_pad(data, fixlen):
-    data = map(lambda x: x + [data.ID_PAD] * (fixlen - len(x)), data)
+    data = map(lambda x: x + [ID_PAD] * (fixlen - len(x)), data)
     data = list(data)
     return np.asarray(data)
 
