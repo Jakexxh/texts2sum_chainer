@@ -31,7 +31,7 @@ def main():
 	parser.add_argument('--sum_vocab_size', type=int, default=30000, help='Sum vocabulary size.')
 	### model
 	parser.add_argument('--batch_size', type=int, default=80, help='Batch size in training / beam size in testing.')
-	parser.add_argument('--lr', type=float, default=1.0, help='learning rate')
+	parser.add_argument('--lr', type=float, default=0.1, help='learning rate')
 	parser.add_argument('--epoch', '-e', type=int, default=20,
 	                    help='number of sweeps over the dataset to train')
 	parser.add_argument('--iteration', '-i', type=int, default=1000000,
@@ -62,7 +62,7 @@ def main():
 	
 	bilstm_model = Text2SumModel(args.text_vocab_size, args.sum_vocab_size, args.units)
 	
-	optimizer = chainer.optimizers.Adam(1.0)
+	optimizer = chainer.optimizers.Adam(args.lr)
 
 	optimizer.setup(bilstm_model)
 	# optimizer.add_hook(chainer.optimizer.GradientClipping(1.0))
