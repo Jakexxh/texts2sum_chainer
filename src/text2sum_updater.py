@@ -4,7 +4,7 @@ import chainer
 # Custom updater for truncated BackProp Through Time (BPTT)
 class Text2SumUpdater(chainer.training.StandardUpdater):
 	
-	def __init__(self, train_iter, optimizer, bprop_len, device=None):
+	def __init__(self, train_iter, optimizer, bprop_len=20, device=None):
 		super(Text2SumUpdater, self).__init__(
 			train_iter, optimizer, device=device)
 		self.bprop_len = bprop_len
@@ -21,9 +21,9 @@ class Text2SumUpdater(chainer.training.StandardUpdater):
 		optimizer = self.get_optimizer('main')
 		
 		# Progress the dataset iterator for bprop_len words at each iteration.
-		for i in range(self.bprop_len):
+		# for i in range(self.bprop_len):
 			# Get the next batch (a list of tuples of two word IDs)
-			encoder_inputs, decoder_inputs = train_iter.__next__()
+			# encoder_inputs, decoder_inputs = train_iter.__next__()
 			
 			# Concatenate the word IDs to matrices and send them to the device
 			# self.converter does this job
@@ -31,8 +31,11 @@ class Text2SumUpdater(chainer.training.StandardUpdater):
 			
 			
 			# Compute the loss at this time step and accumulate it
-			loss += optimizer.target(chainer.Variable(encoder_inputs), chainer.Variable(decoder_inputs))
-		
+			# loss += optimizer.target(chainer.Variable(encoder_inputs), chainer.Variable(decoder_inputs))
+
+		encoder_inputs, decoder_inputs = train_iter.__next__()
+		loss = optimizer.target(chainer.Variable(encoder_inputs), chainer.Variable(decoder_inputs))
+	
 		optimizer.target.cleargrads()  # Clear the parameter gradients
 		loss.backward()  # Backprop
 		loss.unchain_backward()  # Truncate the graph

@@ -31,6 +31,7 @@ def main():
 	parser.add_argument('--sum_vocab_size', type=int, default=30000, help='Sum vocabulary size.')
 	### model
 	parser.add_argument('--batch_size', type=int, default=80, help='Batch size in training / beam size in testing.')
+	parser.add_argument('--lr', type=float, default=1.0, help='learning rate')
 	parser.add_argument('--epoch', '-e', type=int, default=20,
 	                    help='number of sweeps over the dataset to train')
 	parser.add_argument('--iteration', '-i', type=int, default=1000000,
@@ -39,11 +40,11 @@ def main():
 	                    help='Number of LSTM units in each layer')
 	parser.add_argument('--mode', '-m', type=str, default='train',
 	                    help='model mode: train | sum')
-	parser.add_argument('--validation-interval', type=int, default=200,
+	parser.add_argument('--validation-interval', type=int, default=2, #200
 	                    help='number of iteration to evlauate the model '
 	                         'with validation dataset')
 	### log
-	parser.add_argument('--log-interval', type=int, default=50,
+	parser.add_argument('--log-interval', type=int, default=1, #50
 	                    help='number of iteration to show log')
 	parser.add_argument('--save_model', '-sm', default='model.npz',
 	                    help='Model file name to serialize')
@@ -61,11 +62,12 @@ def main():
 	
 	bilstm_model = Text2SumModel(args.text_vocab_size, args.sum_vocab_size, args.units)
 	
-	optimizer = chainer.optimizers.Adam()
+	optimizer = chainer.optimizers.Adam(1.0)
+
 	optimizer.setup(bilstm_model)
-	optimizer.add_hook(chainer.optimizer.GradientClipping(1.0))
+	# optimizer.add_hook(chainer.optimizer.GradientClipping(1.0))
 	
-	updater = Text2SumUpdater(train_iter, optimizer, 10)
+	updater = Text2SumUpdater(train_iter, optimizer)
 	trainer = training.Trainer(updater, (args.epoch, 'epoch'))
 	
 	#################### validation ####################
